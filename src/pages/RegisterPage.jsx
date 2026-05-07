@@ -1,0 +1,90 @@
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Link, useNavigate } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { authApi } from '../api/client'
+import { useAuthStore } from '../store/authStore'
+import { getErrorMessage } from '../lib/utils'
+import { Spinner } from '../components/ui'
+
+const schema = z.object({
+  name: z.string().min(2, 'Min 2 chars'),
+  email: z.string().email('Invalid email'),
+  password: z.string().min(8, 'Min 8 characters'),
+})
+
+export default function RegisterPage() {
+  const navigate = useNavigate()
+  const setAuth = useAuthStore((s) => s.setAuth)
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(schema),
+  })
+
+  const mutation = useMutation({
+    mutationFn: (data) => authApi.register(data),
+    onSuccess: (res) => {
+      const { user, accessToken, refreshToken } = res.data.data
+      setAuth(user, accessToken, refreshToken)
+      toast.success('Account created!')
+      navigate('/')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="absolute inset-0 opacity-[0.03]"
+        style={{ backgroundImage: 'linear-gradient(rgba(34,211,238,1) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+
+      <div className="relative w-full max-w-sm animate-slide-up">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="w-9 h-9 bg-cyan-400 rounded-xl flex items-center justify-center">
+            <svg className="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <span className="font-display font-700 text-white text-2xl tracking-tight">TaskOps</span>
+        </div>
+
+        <div className="card p-7">
+          <h2 className="font-display text-xl font-700 text-white mb-1">Create account</h2>
+          <p className="text-sm text-slate-500 font-mono mb-6">// initialize new workspace</p>
+
+          <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+            <div>
+              <label className="label">Full name</label>
+              <input {...register('name')} className="input" placeholder="Jane Smith" />
+              {errors.name && <p className="text-xs text-rose-400 mt-1 font-mono">{errors.name.message}</p>}
+            </div>
+            <div>
+              <label className="label">Email</label>
+              <input {...register('email')} type="email" className="input" placeholder="you@example.com" />
+              {errors.email && <p className="text-xs text-rose-400 mt-1 font-mono">{errors.email.message}</p>}
+            </div>
+            <div>
+              <label className="label">Password</label>
+              <input {...register('password')} type="password" className="input" placeholder="Min. 8 characters" />
+              {errors.password && <p className="text-xs text-rose-400 mt-1 font-mono">{errors.password.message}</p>}
+            </div>
+
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="btn-primary w-full flex items-center justify-center gap-2 mt-2"
+            >
+              {mutation.isPending ? <><Spinner /> CREATING...</> : 'CREATE ACCOUNT →'}
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-slate-500 font-mono mt-5">
+            Have an account?{' '}
+            <Link to="/login" className="text-cyan-400 hover:text-cyan-300 transition-colors">Sign in</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
